@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- Nur noch der Scanner als externes Skript -->
+    <!-- Scanner Bibliothek -->
     <script src="https://unpkg.com"></script>
     
     <style>
@@ -37,7 +37,7 @@
         }
         
         .grid { display: grid; grid-template-cols: 1fr 1fr; gap: 10px; }
-        .stat-label { color: #9ca3af; font-size: 11px; text-uppercase: uppercase; }
+        .stat-label { color: #9ca3af; font-size: 11px; text-transform: uppercase; tracking-wide: 1px; }
         .stat-val { font-size: 18px; font-weight: bold; margin-top: 5px; }
         
         button {
@@ -165,7 +165,7 @@
             if (container.style.display === 'none' || container.style.display === '') {
                 container.style.display = 'block';
                 btn.innerText = "✕ Scanner schließen";
-                btn.style.backgroundColor = #7f1d1d;
+                btn.style.backgroundColor = "#7f1d1d";
                 
                 html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
                     fps: 10, qrbox: { width: 250, height: 150 }
@@ -236,4 +236,3 @@
             whiskies.push({
                 name: document.getElementById('name').value,
                 barcode: document.getElementById('barcode').value,
-                purchase_price: parseFloat(document.getElementById('purchase_price').value),
