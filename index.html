@@ -7,9 +7,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- QuaggaJS für die echte Barcode-Erkennung aus Fotos -->
-    <script src="https://jsdelivr.net"></script>
-    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -101,20 +98,21 @@
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.7);
+            background-color: rgba(0,0,0,0.8);
             z-index: 1000;
             justify-content: center; align-items: center;
         }
         .modal-content {
             background-color: #161922;
             border: 1px solid #374151;
-            padding: 20px;
+            padding: 25px;
             border-radius: 16px;
             text-align: center;
             max-width: 300px;
             width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
-        .modal-title { color: #4ade80; font-weight: bold; margin-bottom: 10px; }
+        .modal-title { color: #4ade80; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -138,14 +136,14 @@
             </div>
         </div>
 
-        <!-- SCANNER -->
+        <!-- CAMERA FOTO -->
         <div class="card">
-            <div class="stat-label" style="margin-bottom: 5px;">BARCODE FOTOGRAFIEREN</div>
+            <div class="stat-label" style="margin-bottom: 5px;">FLASCHEN-FOTO AUFNEHMEN</div>
             <div class="file-input-wrapper">
-                <button class="btn btn-scan" id="scan-status-btn">📷 Foto aufnehmen / Scannen</button>
-                <input type="file" accept="image/*" capture="environment" id="barcode-file">
+                <button class="btn btn-scan" id="photo-status-btn">📷 Foto mit iPhone aufnehmen</button>
+                <input type="file" accept="image/*" capture="environment" id="whisky-photo-file">
             </div>
-            <p style="font-size: 10px; color: #9ca3af; text-align: center; margin-top: 5px;">Möglichst scharf und nah herangehen</p>
+            <div id="photo-preview-text" style="font-size: 11px; color: #4ade80; text-align: center; margin-top: 5px; display: none;">✓ Foto temporär erfasst</div>
         </div>
 
         <!-- FORMULAR -->
@@ -157,8 +155,8 @@
                     <input type="text" id="name" required placeholder="z.B. Lagavulin 16 Jahre">
                 </div>
                 <div class="form-group">
-                    <label>Gescannter Code (EAN)</label>
-                    <input type="text" id="barcode" placeholder="Erscheint nach dem Foto" readonly style="color: #9ca3af;">
+                    <label>Barcode / EAN (Optional manuell)</label>
+                    <input type="text" id="barcode" placeholder="z.B. 5000281005231">
                 </div>
                 <div class="grid">
                     <div class="form-group">
@@ -183,26 +181,29 @@
     <div id="successModal" class="modal">
         <div class="modal-content">
             <div class="modal-title">✓ Erfolgreich!</div>
-            <p style="font-size: 14px; margin-bottom: 15px;">Flasche zur Sammlung hinzugefügt.</p>
-            <button class="btn" onclick="closePopup()" style="margin: 0;">OK</button>
+            <p style="font-size: 14px; margin-bottom: 15px; color: #e5e7eb;">Flasche wurde erfolgreich zu deiner Sammlung hinzugefügt.</p>
+            <button class="btn" onclick="closePopup()" style="margin: 0; background-color: #4ade80; color: #0d0e12;">OK</button>
         </div>
     </div>
 
     <script>
-        // Absolut krisensichere Speicher-Methode (nutzt Fallbacks)
+        // Absolut krisensichere Datenstruktur ohne externe Störfaktoren
         let whiskies = [];
+        
         function loadData() {
             try {
-                whiskies = JSON.parse(localStorage.getItem('w_safe_data')) || [];
+                whiskies = JSON.parse(localStorage.getItem('whisky_safe_storage')) || [];
             } catch(e) {
-                if(window.name) { try { whiskies = JSON.parse(window.name); } catch(err){} }
+                whiskies = [];
             }
         }
+
         function saveData() {
             try {
-                localStorage.setItem('w_safe_data', JSON.stringify(whiskies));
-            } catch(e) {}
-            try { window.name = JSON.stringify(whiskies); } catch(err){}
+                localStorage.setItem('whisky_safe_storage', JSON.stringify(whiskies));
+            } catch(e) {
+                alert("Speichern auf diesem Gerät blockiert. Bitte nicht im privaten Modus nutzen.");
+            }
         }
 
         const form = document.getElementById('whisky-form');
@@ -214,35 +215,39 @@
             renderList();
         }
 
-        // ECHTE Barcode-Erkennung aus dem geschossenen Foto
-        document.getElementById('barcode-file').addEventListener('change', function(e) {
+        // Bild-Erfassung via iPhone Kamera
+        document.getElementById('whisky-photo-file').addEventListener('change', function(e) {
             if (e.target.files && e.target.files[0]) {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                const btn = document.getElementById('scan-status-btn');
-                
-                btn.innerText = "⏳ Code wird analysiert...";
-                btn.style.backgroundColor = "#6b7280";
+                document.getElementById('photo-preview-text').style.display = 'block';
+                document.getElementById('photo-status-btn').style.backgroundColor = "#10b981";
+                document.getElementById('photo-status-btn').innerText = "📷 Foto gespeichert";
+            }
+        });
 
-                reader.onload = function(event) {
-                    Quagga.decodeSingle({
-                        decoder: {
-                            readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"] 
-                        },
-                        locate: true,
-                        src: event.target.result
-                    }, function(result) {
-                        if(result && result.codeResult) {
-                            document.getElementById('barcode').value = result.codeResult.code;
-                            btn.innerText = "✓ Code erkannt!";
-                            btn.style.backgroundColor = "#10b981";
-                            
-                            // Nächster Meilenstein vorbereitet: Suche im Web nach EAN Code!
-                            document.getElementById('name').value = "Whisky wird gesucht (EAN: " + result.codeResult.code + ")";
-                        } else {
-                            btn.innerText = "⚠️ Nicht erkannt. Erneut versuchen.";
-                            btn.style.backgroundColor = "#ef4444";
-                            alert("Barcode im Foto nicht gefunden. Bitte halte die Kamera näher und ruhiger auf den Strichcode.");
-                        }
-                        setTimeout(() => {
-                            btn.innerText = "📷 Foto aufnehmen / Scannen";
+        function updateDashboard() {
+            let pSum = 0; let cSum = 0;
+            whiskies.forEach(w => { 
+                pSum += parseFloat(w.purchase_price || 0); 
+                cSum += parseFloat(w.current_price || 0); 
+            });
+            document.getElementById('total-purchase').innerText = pSum.toFixed(2) + " €";
+            document.getElementById('total-current').innerText = cSum.toFixed(2) + " €";
+            const diff = cSum - pSum;
+            const pEl = document.getElementById('total-profit');
+            pEl.innerText = (diff >= 0 ? "+" : "") + diff.toFixed(2) + " € Differenz";
+            pEl.style.color = diff >= 0 ? "#4ade80" : "#f87171";
+        }
+
+        function renderList() {
+            listContainer.innerHTML = '';
+            if (!whiskies || whiskies.length === 0) {
+                listContainer.innerHTML = '<div style="text-align:center;color:#6b7280;font-size:14px;padding:20px;">Keine Flaschen eingetragen.</div>';
+                return;
+            }
+            whiskies.forEach((w, i) => {
+                const div = document.createElement('div');
+                div.className = 'whisky-item';
+                const diff = parseFloat(w.current_price || 0) - parseFloat(w.purchase_price || 0);
+                div.innerHTML = `
+                    <div>
+                        <div class="item-name">${w.name}</div>
