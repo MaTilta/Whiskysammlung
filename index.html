@@ -16,7 +16,7 @@ body{background:var(--bg);color:var(--tx);font:16px/1.4 Georgia,"Times New Roman
 main{max-width:480px;margin:0 auto;padding:16px}
 h1{font-size:26px;font-weight:normal;letter-spacing:.5px;margin:8px 0 14px}
 h2{font-size:18px;font-weight:normal;margin:0 0 10px}
-.sans,button,input,label,small{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+.sans,button,input,select,label,small{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
 [hidden]{display:none!important}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
@@ -29,7 +29,7 @@ small{color:var(--mut);font-size:12px;display:block}
 .row{display:flex;gap:10px;align-items:center}
 .row>*{flex:1}
 label{display:block;color:var(--mut);font-size:12px;margin:10px 0 4px}
-input{width:100%;background:#2a2218;border:1px solid var(--line);color:var(--tx);padding:11px;border-radius:10px;font-size:16px}
+input,select{width:100%;background:#2a2218;border:1px solid var(--line);color:var(--tx);padding:11px;border-radius:10px;font-size:16px}
 .item{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:10px}
 .thumb{width:54px;height:72px;border-radius:8px;background:#2a2218 center/cover no-repeat;flex:none;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:22px}
 .item .t{flex:1;min-width:0}
@@ -56,6 +56,10 @@ svg text{fill:var(--tx);font:12px -apple-system,sans-serif}
 <section id="vList">
   <h1>Meine Whiskys</h1>
   <div class="stats">
+    <div class="card"><small>Flaschen insgesamt</small><div class="big" id="cBot">0</div></div>
+    <div class="card"><small>Verschiedene Sorten</small><div class="big" id="cSort">0</div></div>
+  </div>
+  <div class="stats">
     <div class="card"><small>Summe Kaufpreise</small><div class="big" id="sBuy">0,00 €</div></div>
     <div class="card"><small>Aktueller Gesamtwert</small><div class="big" id="sNow">0,00 €</div></div>
   </div>
@@ -64,14 +68,35 @@ svg text{fill:var(--tx);font:12px -apple-system,sans-serif}
     <svg id="chart" viewBox="0 0 300 150" width="100%" role="img" aria-label="Kaufpreise im Vergleich zum aktuellen Wert"></svg>
     <div class="msg" id="sDiff" style="text-align:center"></div>
   </div>
-  <button class="btn" id="bAdd">Flasche hinzufügen</button>
-  <div style="height:16px"></div>
-  <div id="list"></div>
+  <button class="btn" id="bAll">Alle Flaschen ansehen</button>
+  <button class="btn alt" id="bAdd">Flasche hinzufügen</button>
   <div class="card" style="margin-top:20px">
     <small>Sicherung</small>
     <div class="row"><button class="btn alt" id="bExp">Daten kopieren</button><button class="btn alt" id="bImp">Daten einfügen</button></div>
     <div class="msg" id="stor"></div>
   </div>
+</section>
+
+<!-- Alle Flaschen -->
+<section id="vAll" hidden>
+  <button class="btn alt" id="bHome" style="margin:0 0 14px">Zurück zur Startseite</button>
+  <h1>Alle Flaschen</h1>
+  <div class="card">
+    <label style="margin-top:0">Destillerie</label>
+    <select id="fDist"><option value="">Alle Destillerien</option></select>
+    <label>Suche</label>
+    <input id="fText" type="search" placeholder="Name, Destillerie oder Barcode">
+    <label>Sortieren nach</label>
+    <select id="fSort">
+      <option value="dist">Destillerie (A bis Z)</option>
+      <option value="name">Sorte / Name (A bis Z)</option>
+      <option value="now">Zeitwert (hoch zu niedrig)</option>
+      <option value="buy">Kaufpreis (hoch zu niedrig)</option>
+      <option value="new">Zuletzt hinzugefügt</option>
+    </select>
+    <div class="msg" id="fCount"></div>
+  </div>
+  <div id="list"></div>
 </section>
 
 <!-- Formular -->
@@ -83,7 +108,9 @@ svg text{fill:var(--tx);font:12px -apple-system,sans-serif}
       <div id="reader"></div>
       <button type="button" class="btn alt" id="bScanStop">Scan abbrechen</button>
     </div>
+    <div class="msg" id="tip" hidden>Barcode quer halten, 15 bis 25 cm Abstand, gutes Licht. Kurz vor und zurück bewegen, bis das Bild scharf ist.</div>
     <div id="reader2" hidden></div>
+    <label class="btn alt" style="text-align:center;display:block;color:var(--tx);margin:10px 0 0;font-size:15px">Foto vom Barcode aufnehmen<input type="file" id="scanFile" accept="image/*" capture="environment" hidden></label>
     <label>Barcode (EAN)</label>
     <div class="row"><input id="ean" inputmode="numeric" placeholder="z. B. 5000281005231"><button type="button" class="btn alt" id="bLook" style="margin:0;flex:none;width:auto;padding:11px 14px">Suchen</button></div>
     <div class="msg" id="msg"></div>
@@ -114,7 +141,7 @@ svg text{fill:var(--tx);font:12px -apple-system,sans-serif}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 var KEY = 'whisky_sammlung_v1';
-var items = [], editId = null, photo = '', scanner = null;
+var items = [], editId = null, lastEdit = false, photo = '', scanner = null;
 var $ = function (id) { return document.getElementById(id); };
 
 function load() { try { items = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { items = []; } }
@@ -125,12 +152,14 @@ function save() {
 function num(v) { return parseFloat(String(v).replace(',', '.')) || 0; }
 function eur(n) { return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-function show(v) { ['vList', 'vForm', 'vDetail'].forEach(function (x) { $(x).hidden = x !== v; }); window.scrollTo(0, 0); }
+function show(v) { ['vList', 'vAll', 'vForm', 'vDetail'].forEach(function (x) { $(x).hidden = x !== v; }); window.scrollTo(0, 0); }
 
 /* Übersicht, Summen, Diagramm */
 function render() {
-  var buy = 0, now = 0;
-  items.forEach(function (w) { buy += w.buy * w.qty; now += w.now * w.qty; });
+  var buy = 0, now = 0, n = 0;
+  items.forEach(function (w) { buy += w.buy * w.qty; now += w.now * w.qty; n += w.qty; });
+  $('cBot').textContent = n;
+  $('cSort').textContent = items.length;
   $('sBuy').textContent = eur(buy);
   $('sNow').textContent = eur(now);
   var d = now - buy;
@@ -144,17 +173,35 @@ function render() {
     '<text x="210" y="' + (114 - h2) + '" text-anchor="middle">' + eur(now) + '</text>' +
     '<text x="90" y="138" text-anchor="middle">Kaufpreise</text>' +
     '<text x="210" y="138" text-anchor="middle">Aktueller Wert</text>';
-  var L = $('list');
-  if (!items.length) { L.innerHTML = '<div class="msg" style="text-align:center">Noch keine Flaschen. Tippe auf „Flasche hinzufügen“.</div>'; }
-  else {
-    L.innerHTML = items.map(function (w) {
-      return '<div class="item" data-id="' + w.id + '"><div class="thumb" style="' + (w.photo ? "background-image:url('" + w.photo + "')" : '') + '">' + (w.photo ? '' : '🥃') + '</div>' +
-        '<div class="t"><b>' + esc(w.name) + '</b><small>' + esc(w.distillery) + ' · ' + w.qty + '×</small></div>' +
-        '<div class="v">' + eur(w.now * w.qty) + '</div></div>';
-    }).join('');
-  }
-  var n = 0; items.forEach(function (w) { n += w.qty; });
-  $('stor').textContent = items.length + ' Einträge, ' + n + ' Flaschen. Speicher: ' + (storageOk() ? 'in Ordnung' : 'BLOCKIERT');
+  $('stor').textContent = 'Speicher: ' + (storageOk() ? 'in Ordnung' : 'BLOCKIERT');
+  renderList();
+}
+function cmp(a, b) { return String(a || '').localeCompare(String(b || ''), 'de'); }
+function renderList() {
+  var dsel = $('fDist'), cur = dsel.value, ds = [];
+  items.forEach(function (w) { var x = (w.distillery || '').trim(); if (x && ds.indexOf(x) < 0) ds.push(x); });
+  ds.sort(cmp);
+  dsel.innerHTML = '<option value="">Alle Destillerien</option>' + ds.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+  dsel.value = ds.indexOf(cur) >= 0 ? cur : '';
+  var q = $('fText').value.trim().toLowerCase(), dist = dsel.value, mode = $('fSort').value;
+  var rows = items.filter(function (w) {
+    if (dist && (w.distillery || '').trim() !== dist) return false;
+    if (q && (w.name + ' ' + w.distillery + ' ' + w.ean).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+  rows.sort(function (a, b) {
+    if (mode === 'name') return cmp(a.name, b.name);
+    if (mode === 'now') return b.now - a.now;
+    if (mode === 'buy') return b.buy - a.buy;
+    if (mode === 'new') return parseInt(b.id, 36) - parseInt(a.id, 36);
+    return cmp(a.distillery, b.distillery) || cmp(a.name, b.name);
+  });
+  $('fCount').textContent = rows.length + ' von ' + items.length + ' Einträgen';
+  $('list').innerHTML = rows.length ? rows.map(function (w) {
+    return '<div class="item" data-id="' + w.id + '"><div class="thumb" style="' + (w.photo ? "background-image:url('" + w.photo + "')" : '') + '">' + (w.photo ? '' : '🥃') + '</div>' +
+      '<div class="t"><b>' + esc(w.name) + '</b><small>' + esc(w.distillery) + ' · ' + w.qty + '×</small></div>' +
+      '<div class="v">' + eur(w.now * w.qty) + '</div></div>';
+  }).join('') : '<div class="msg" style="text-align:center">' + (items.length ? 'Keine Treffer. Ändere Filter oder Suche.' : 'Noch keine Flaschen vorhanden.') + '</div>';
 }
 function storageOk() { try { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); return true; } catch (e) { return false; } }
 
@@ -177,7 +224,7 @@ function openDetail(id) {
     '<button class="btn" id="bEdit">Bearbeiten</button><button class="btn del" id="bDel">Löschen</button>';
   $('bEdit').onclick = function () { openForm(w); };
   $('bDel').onclick = function () {
-    if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); save(); render(); show('vList'); }
+    if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); save(); render(); show('vAll'); }
   };
   show('vDetail');
 }
@@ -206,20 +253,65 @@ function shrink(file) {
 }
 
 /* Scanner */
-function startScan() {
-  if (typeof Html5Qrcode === 'undefined') { $('msg').textContent = 'Scanner konnte nicht geladen werden (Internet?). Nutze „Foto vom Barcode“ oder tippe die Nummer ein.'; return; }
-  $('scanBox').hidden = false;
+function loadLib(cb) {
+  if (typeof Html5Qrcode !== 'undefined') { cb(true); return; }
+  var t = document.createElement('script');
+  t.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  t.onload = function () { cb(typeof Html5Qrcode !== 'undefined'); };
+  t.onerror = function () { cb(false); };
+  document.head.appendChild(t);
+}
+function mkScanner(el) {
   var F = Html5QrcodeSupportedFormats;
-  scanner = new Html5Qrcode('reader', { formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.QR_CODE], verbose: false });
-  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 140 } },
-    function (txt) { stopScan(); $('ean').value = txt; lookup(txt); }, function () { })
-    .catch(function (e) { $('msg').textContent = 'Kamera nicht verfügbar: ' + e; stopScan(); });
+  return new Html5Qrcode(el, { formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.QR_CODE], verbose: false, experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+}
+function onCode(txt) { stopScan(); $('ean').value = txt; $('msg').textContent = 'Barcode erkannt: ' + txt; lookup(txt); }
+function startScan() {
+  $('msg').textContent = 'Scanner wird gestartet …';
+  loadLib(function (ok) {
+    if (!ok) { $('msg').textContent = 'Scanner konnte nicht geladen werden (Internet?). Nutze „Foto vom Barcode“ oder tippe die Nummer ein.'; return; }
+    $('scanBox').hidden = false; $('tip').hidden = false;
+    var box = function (w, h) { return { width: Math.floor(w * 0.9), height: Math.floor(Math.min(h * 0.6, w * 0.45)) }; };
+    scanner = mkScanner('reader');
+    scanner.start({ facingMode: 'environment' }, { fps: 15, qrbox: box, videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } }, onCode, function () { })
+      .then(function () { $('msg').textContent = 'Halte den Barcode in den Rahmen.'; })
+      .catch(function () {
+        scanner = mkScanner('reader');
+        scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: box }, onCode, function () { })
+          .then(function () { $('msg').textContent = 'Halte den Barcode in den Rahmen.'; })
+          .catch(function (e) { $('msg').textContent = 'Kamera nicht verfügbar: ' + e + ' (Kamerazugriff erlauben oder „Foto vom Barcode“ nutzen)'; stopScan(); });
+      });
+  });
 }
 function stopScan() {
-  var s = scanner; scanner = null; $('scanBox').hidden = true;
+  var s = scanner; scanner = null; $('scanBox').hidden = true; $('tip').hidden = true;
   if (s) { s.stop().then(function () { s.clear(); }).catch(function () { }); }
 }
-
+function scaled(file, max) {
+  return new Promise(function (res, rej) {
+    var u = URL.createObjectURL(file), i = new Image();
+    i.onload = function () {
+      var k = Math.min(1, max / Math.max(i.width, i.height)), c = document.createElement('canvas');
+      c.width = Math.round(i.width * k); c.height = Math.round(i.height * k);
+      c.getContext('2d').drawImage(i, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u);
+      c.toBlob(function (b) { b ? res(new File([b], 'scan.jpg', { type: 'image/jpeg' })) : rej(); }, 'image/jpeg', 0.92);
+    };
+    i.onerror = rej; i.src = u;
+  });
+}
+function scanPhoto(e) {
+  var f = e.target.files && e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  $('msg').textContent = 'Foto wird gelesen …';
+  loadLib(function (ok) {
+    if (!ok) { $('msg').textContent = 'Scanner konnte nicht geladen werden (Internet?).'; return; }
+    scaled(f, 1600).then(function (img) {
+      var h = mkScanner('reader2');
+      return h.scanFile(img, false).then(function (t) { try { h.clear(); } catch (x) { } onCode(t); });
+    }).catch(function () { $('msg').textContent = 'Im Foto wurde kein Barcode erkannt. Näher ran, Barcode gerade und scharf im Bild, gutes Licht.'; });
+  });
+}
 /* Online-Abfrage (Open Food Facts) */
 function lookup(ean) {
   ean = String(ean || '').trim(); if (!ean) { $('msg').textContent = 'Bitte zuerst einen Barcode eingeben oder scannen.'; return; }
@@ -246,17 +338,21 @@ function lookup(ean) {
 /* Ereignisse */
 $('list').addEventListener('click', function (e) { var it = e.target.closest('.item'); if (it) openDetail(it.getAttribute('data-id')); });
 $('bAdd').onclick = function () { openForm(null); };
-$('bBack').onclick = function () { show('vList'); };
-$('bCancel').onclick = function () { stopScan(); show('vList'); };
+$('bBack').onclick = function () { show('vAll'); };
+$('bAll').onclick = function () { renderList(); show('vAll'); };
+$('bHome').onclick = function () { show('vList'); };
+$('fDist').onchange = renderList; $('fSort').onchange = renderList; $('fText').oninput = renderList;
+$('bCancel').onclick = function () { stopScan(); show(editId ? 'vAll' : 'vList'); };
 $('bScan').onclick = startScan;
 $('bScanStop').onclick = stopScan;
+$('scanFile').addEventListener('change', scanPhoto);
 $('bLook').onclick = function () { lookup($('ean').value); };
 $('photoIn').addEventListener('change', function (e) {
   var f = e.target.files && e.target.files[0]; if (!f) return;
   shrink(f).then(function (d) { photo = d; setPrev(); }).catch(function () { $('msg').textContent = 'Foto konnte nicht gelesen werden.'; });
 });
 $('f').addEventListener('submit', function (e) {
-  e.preventDefault(); stopScan();
+  e.preventDefault(); stopScan(); lastEdit = !!editId;
   var o = {
     id: editId || Date.now().toString(36), distillery: $('distillery').value.trim(), name: $('name').value.trim(),
     ean: $('ean').value.trim(), abv: num($('abv').value), qty: Math.max(1, parseInt($('qty').value, 10) || 1),
@@ -267,7 +363,7 @@ $('f').addEventListener('submit', function (e) {
   if (!save()) return;
   render(); $('modal').classList.add('on');
 });
-$('bOk').onclick = function () { $('modal').classList.remove('on'); show('vList'); };
+$('bOk').onclick = function () { $('modal').classList.remove('on'); show(lastEdit ? 'vAll' : 'vList'); };
 $('bExp').onclick = function () {
   var t = JSON.stringify(items);
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { alert('Sicherung in die Zwischenablage kopiert. Füge sie z. B. in eine Notiz ein.'); }, function () { prompt('Diesen Text kopieren:', t); });
