@@ -52,6 +52,8 @@ svg text{fill:var(--tx);font:12px -apple-system,sans-serif}
 #shade{position:fixed;inset:0;z-index:-1;background:rgba(10,7,4,.6);opacity:0;transition:opacity 1.3s ease}
 body.ready #shade{opacity:1}
 h1{text-shadow:0 1px 10px rgba(0,0,0,.8)}
+.org{color:var(--bad)}
+.blue{color:#6aa9ff}
 .item .l1{color:var(--acc)}
 .item .l3{color:var(--acc);font-size:12px}
 .slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -140,10 +142,11 @@ input[type=date]{min-height:44px}
     <label>Destillerie</label><input id="distillery" placeholder="z. B. Lagavulin">
     <label>Sorte / Name</label><input id="name" required placeholder="z. B. 16 Jahre">
     <div class="row"><div><label>Kaufpreis pro Flasche (€)</label><input id="buy" inputmode="decimal" required placeholder="85,00"></div><div><label>Zeitwert pro Flasche (€)</label><input id="now" inputmode="decimal" required placeholder="120,00"></div></div>
+    <label>Höchstwert pro Flasche (€, optional)</label><input id="max" inputmode="decimal" placeholder="z. B. 180,00">
     <label>Kaufdatum</label><input id="date" type="date">
     <div class="row"><div><label>Alkoholgehalt (% vol)</label><input id="abv" inputmode="decimal" placeholder="43"></div><div><label>Anzahl</label><input id="qty" inputmode="numeric" value="1"></div></div>
     <label>Foto</label>
-    <div class="row"><div class="thumb" id="prev" style="width:72px;flex:none"></div><input type="file" id="photoIn" accept="image/*" capture="environment"></div>
+    <div class="row"><div class="thumb" id="prev" style="width:72px;flex:none"></div><input type="file" id="photoIn" accept="image/*"></div>
     <button type="submit" class="btn">Flasche speichern</button>
     <button type="button" class="btn alt" id="bCancel">Abbrechen</button>
   </form>
@@ -167,6 +170,7 @@ input[type=date]{min-height:44px}
   <div class="msg" style="color:var(--tx)">Suchbegriff (bereits kopiert):</div>
   <p id="waTerm" style="margin:6px 0 12px;color:var(--acc)"></p>
   <a class="btn" style="display:block;text-decoration:none;text-align:center" href="https://www.whiskyauction.com/wac/whiskyBrowser" target="_blank" rel="noopener">Datenbank öffnen</a>
+  <div class="msg">Danach: Wert markieren und „Kopieren“ bzw. Bild lange drücken und „Kopieren“. Zurück in die App öffnet sich die Flasche, dort unter „Von WhiskyAuction übernehmen“ einfügen.</div>
   <div class="msg">Bleibt die Seite leer: Öffne Safari, rufe whiskyauction.com auf, wähle „History Browser“ und füge den Begriff im Feld „Full text search“ ein.</div>
   <button class="btn alt" id="waClose">Schließen</button>
 </div></div>
@@ -312,6 +316,42 @@ function drawHist() {
 }
 function storageOk() { try { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); return true; } catch (e) { return false; } }
 
+/* Übernahme aus der Zwischenablage */
+function parseMoney(t) {
+  var m = String(t || '').match(/\d[\d.,\s]*/); if (!m) return 0;
+  var x = m[0].replace(/\s/g, '').replace(/[.,]+$/, '');
+  var c = x.lastIndexOf(','), d = x.lastIndexOf('.');
+  if (c >= 0 && d >= 0) { x = c > d ? x.replace(/\./g, '').replace(',', '.') : x.replace(/,/g, ''); }
+  else if (c >= 0) { x = (/,\d{1,2}$/.test(x) && x.indexOf(',') === c) ? x.replace(',', '.') : x.replace(/,/g, ''); }
+  else if (d >= 0) { x = /\.\d{3}$/.test(x) ? x.replace(/\./g, '') : x; }
+  var v = parseFloat(x); return isFinite(v) && v > 0 ? v : 0;
+}
+function waMsg(t) { var e = $('waMsg'); if (e) e.textContent = t; }
+function applyVal(w, kind) {
+  if (!navigator.clipboard || !navigator.clipboard.readText) { waMsg('Zwischenablage nicht verfügbar. Bitte den Wert über „Bearbeiten“ eintippen.'); return; }
+  navigator.clipboard.readText().then(function (t) {
+    var v = parseMoney(t);
+    if (!v) { waMsg('In der Zwischenablage wurde keine Zahl gefunden. Wert auf der Website markieren und „Kopieren“ wählen.'); return; }
+    var old = kind === 'now' ? w.now : w.max, label = kind === 'now' ? 'Zeitwert' : 'Höchstwert';
+    if (!confirm(label + ': ' + (old ? eur(old) + ' durch ' + eur(v) + ' ersetzen?' : eur(v) + ' übernehmen?'))) return;
+    if (kind === 'now') { w.now = v; if (!w.vh.length || Math.abs(w.vh[w.vh.length - 1].v - v) > 0.0049) w.vh.push({ t: Date.now(), v: v }); } else { w.max = v; }
+    if (save()) { render(); openDetail(w.id); waMsg(label + ' übernommen.'); }
+  }).catch(function () { waMsg('Zugriff auf die Zwischenablage nicht erlaubt.'); });
+}
+function setPhoto(w, blob) {
+  return shrink(blob).then(function (d) {
+    if (w.photo && !confirm('Vorhandenes Foto ersetzen?')) return;
+    w.photo = d;
+    if (save()) { render(); openDetail(w.id); waMsg('Bild übernommen.'); }
+  });
+}
+function resumeWa() {
+  var id = null; try { id = localStorage.getItem('wa_item'); } catch (e) { }
+  if (!id) return;
+  try { localStorage.removeItem('wa_item'); } catch (e) { }
+  if (items.some(function (x) { return x.id === id; })) { $('waModal').classList.remove('on'); openDetail(id); }
+}
+
 /* Detail */
 function openDetail(id) {
   var w = items.filter(function (x) { return x.id === id; })[0]; if (!w) return;
@@ -326,16 +366,40 @@ function openDetail(id) {
     '<dt>Anzahl</dt><dd>' + w.qty + '</dd>' +
     '<dt>Kaufpreis pro Flasche</dt><dd>' + eur(w.buy) + '</dd>' +
     '<dt>Zeitwert pro Flasche</dt><dd>' + eur(w.now) + '</dd>' +
+    '<dt>Höchstwert pro Flasche</dt><dd class="blue">' + (w.max ? eur(w.max) : '–') + '</dd>' +
     '<dt>Kaufpreis gesamt</dt><dd>' + eur(w.buy * w.qty) + '</dd>' +
-    '<dt>Zeitwert gesamt</dt><dd>' + eur(w.now * w.qty) + '</dd>' +
+    '<dt>Zeitwert gesamt</dt><dd class="org">' + eur(w.now * w.qty) + '</dd>' +
     '<dt>Differenz</dt><dd class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + eur(d) + '</dd></dl></div>' +
-    '<button class="btn alt" id="bWa">Zeitwert bei WhiskyAuction prüfen</button><button class="btn" id="bEdit">Bearbeiten</button><button class="btn del" id="bDel">Löschen</button>';
+    '<button class="btn alt" id="bWa">Zeitwert bei WhiskyAuction prüfen</button>' +
+    '<div class="card" style="margin-top:14px"><h2 style="font-size:16px">Von WhiskyAuction übernehmen</h2>' +
+    '<div class="msg" style="margin:0 0 6px">Wert markieren und „Kopieren“ wählen, oder Bild lange drücken und „Kopieren“ wählen. Dann hier zurück und den passenden Knopf tippen.</div>' +
+    '<button class="btn alt" id="bClipImg">Bild aus Zwischenablage</button>' +
+    '<div class="row"><button class="btn alt" id="bClipNow">Wert → Zeitwert</button><button class="btn alt" id="bClipMax">Wert → Höchstwert</button></div>' +
+    '<label class="btn alt" style="text-align:center;display:block;color:var(--tx);margin:10px 0 0;font-size:15px">Bild aus Fotos wählen<input type="file" id="wFile" accept="image/*" hidden></label>' +
+    '<div class="msg" id="waMsg"></div></div>' +
+    '<button class="btn" id="bEdit">Bearbeiten</button><button class="btn del" id="bDel">Löschen</button>';
   $('bEdit').onclick = function () { openForm(w); };
   $('bWa').onclick = function () {
     var q = ((w.distillery || '') + ' ' + (w.name || '')).trim();
     try { navigator.clipboard.writeText(q); } catch (e) { }
+    try { localStorage.setItem('wa_item', w.id); } catch (e) { }
     $('waTerm').textContent = q; $('waModal').classList.add('on');
   };
+  $('bClipNow').onclick = function () { applyVal(w, 'now'); };
+  $('bClipMax').onclick = function () { applyVal(w, 'max'); };
+  $('bClipImg').onclick = function () {
+    if (!navigator.clipboard || !navigator.clipboard.read) { waMsg('Bildzugriff nicht verfügbar. Nutze „Bild aus Fotos wählen“ (Bild vorher lange drücken und „Zu Fotos hinzufügen“ wählen).'); return; }
+    navigator.clipboard.read().then(function (its) {
+      var hit = null;
+      its.forEach(function (it) { if (hit) return; for (var i = 0; i < it.types.length; i++) { if (it.types[i].indexOf('image/') === 0) { hit = [it, it.types[i]]; return; } } });
+      if (!hit) { waMsg('Kein Bild in der Zwischenablage. Bild auf der Website lange drücken und „Kopieren“ wählen.'); return; }
+      return hit[0].getType(hit[1]).then(function (b) { return setPhoto(w, b); });
+    }).catch(function () { waMsg('Zugriff auf die Zwischenablage nicht erlaubt oder kein Bild vorhanden.'); });
+  };
+  $('wFile').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    setPhoto(w, f).catch(function () { waMsg('Bild konnte nicht gelesen werden.'); });
+  });
   $('bDel').onclick = function () {
     if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); save(); render(); show('vAll'); }
   };
@@ -349,7 +413,7 @@ function openForm(w) {
   $('fTitle').textContent = w ? 'Flasche bearbeiten' : 'Neue Flasche';
   $('ean').value = w ? w.ean : ''; $('distillery').value = w ? w.distillery : ''; $('name').value = w ? w.name : '';
   $('buy').value = w ? String(w.buy).replace('.', ',') : ''; $('now').value = w ? String(w.now).replace('.', ',') : '';
-  $('date').value = w ? (w.date || todayStr()) : todayStr(); $('abv').value = w ? w.abv || '' : ''; $('qty').value = w ? w.qty : 1;
+  $('date').value = w ? (w.date || todayStr()) : todayStr(); $('max').value = w && w.max ? String(w.max).replace('.', ',') : ''; $('abv').value = w ? w.abv || '' : ''; $('qty').value = w ? w.qty : 1;
   $('msg').textContent = ''; $('photoIn').value = ''; setPrev(); show('vForm');
 }
 function shrink(file) {
@@ -525,7 +589,7 @@ $('f').addEventListener('submit', function (e) {
   var o = {
     id: editId || Date.now().toString(36), distillery: $('distillery').value.trim(), name: $('name').value.trim(),
     ean: $('ean').value.trim(), abv: num($('abv').value), qty: Math.max(1, parseInt($('qty').value, 10) || 1),
-    buy: num($('buy').value), now: num($('now').value), photo: photo, date: $('date').value || todayStr()
+    buy: num($('buy').value), now: num($('now').value), photo: photo, date: $('date').value || todayStr(), max: num($('max').value)
   };
   var k = -1; items.forEach(function (x, i) { if (x.id === o.id) k = i; });
   var old = k >= 0 ? items[k] : null, vh = old && old.vh ? old.vh.slice() : [];
@@ -553,6 +617,8 @@ $('rng').addEventListener('click', function (e) {
   drawHist();
 });
 $('waClose').onclick = function () { $('waModal').classList.remove('on'); };
+document.addEventListener('visibilitychange', function () { if (!document.hidden) resumeWa(); });
+resumeWa();
 $('slides').addEventListener('scroll', function () {
   var k = Math.round(this.scrollLeft / this.clientWidth), d = $('dots').children;
   for (var i = 0; i < d.length; i++) d[i].className = i === k ? 'on' : '';
