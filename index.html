@@ -156,9 +156,13 @@ input[type=date]{min-height:44px}
     <div class="row"><div><label>Alkoholgehalt (% vol)</label><input id="abv" inputmode="decimal" placeholder="43"></div><div><label>Anzahl</label><input id="qty" inputmode="numeric" value="1"></div></div>
     <label>Foto</label>
     <div class="row"><div class="thumb" id="prev" style="width:72px;flex:none"></div><input type="file" id="photoIn" accept="image/*"></div>
-    <div class="card" style="margin:14px 0 0;background:#2a2218"><h2 style="font-size:16px">Von WhiskyAuction übernehmen</h2>
-      <div class="msg" style="margin:0 0 6px">Auf der Website Wert markieren und „Kopieren“ wählen oder Bild lange drücken und „Kopieren“ wählen. Hier zurück und den passenden Knopf tippen. Danach „Flasche speichern“.</div>
-      <button type="button" class="btn alt" id="bWaF">Bei WhiskyAuction suchen</button>
+    <div class="card" style="margin:14px 0 0;background:#2a2218"><h2 style="font-size:16px">WhiskyAuction-Recherche</h2>
+      <div class="msg" style="margin:0 0 6px;color:var(--tx)">1. Suchbegriff kopieren (die Zwischenablage wird erst beim Tippen belegt):</div>
+      <div class="row"><button type="button" class="btn alt" id="cpD" style="margin-top:0;font-size:14px">Destillerie</button><button type="button" class="btn alt" id="cpN" style="margin-top:0;font-size:14px">Name</button><button type="button" class="btn alt" id="cpE" style="margin-top:0;font-size:14px">EAN</button></div>
+      <div class="msg" id="cpMsg"></div>
+      <a class="btn" style="display:block;text-decoration:none;text-align:center" href="https://www.whiskyauction.com/wac/whiskyBrowser" target="_blank" rel="noopener">WhiskyAuction-Datenbank öffnen</a>
+      <div class="msg">Begriff in der Filterleiste einfügen (evtl. unter „+more filters“), z. B. bei „Full text search“, „Distillery“ oder „Name“, dann „Show results“. Bleibt die Seite leer: Safari öffnen, whiskyauction.com aufrufen und „History Browser“ wählen.</div>
+      <div class="msg" style="margin-top:12px;color:var(--tx)">2. Ergebnis übernehmen: Wert markieren und „Kopieren“ oder Bild lange drücken und „Kopieren“, dann hier zurück:</div>
       <button type="button" class="btn alt" id="bClipImg">Bild aus Zwischenablage</button>
       <div class="row"><button type="button" class="btn alt" id="bClipNow">Wert → Zeitwert</button><button type="button" class="btn alt" id="bClipMax">Wert → Höchstwert</button></div>
       <label class="btn alt" style="text-align:center;display:block;color:var(--tx);margin:10px 0 0;font-size:15px">Bild aus Fotos wählen<input type="file" id="wFile" accept="image/*" hidden></label>
@@ -180,24 +184,13 @@ input[type=date]{min-height:44px}
   <button class="btn" id="bOk">OK</button>
 </div></div>
 
-<div class="modal" id="waModal"><div>
-  <h2>Zeitwert recherchieren</h2>
-  <div class="msg" style="color:var(--tx)">1. Destillerie: im Filter „Distillery“ eintragen</div>
-  <div class="row"><div id="waDist" style="color:var(--acc);word-break:break-word"></div><button class="btn alt" id="waCopyD" style="margin:0;flex:none;width:auto;padding:10px 14px">Kopieren</button></div>
-  <div class="msg" style="color:var(--tx);margin-top:12px">2. Name: im Filter „Name“ oder in „Full text search“ eintragen</div>
-  <div class="row"><div id="waName" style="color:var(--acc);word-break:break-word"></div><button class="btn alt" id="waCopyN" style="margin:0;flex:none;width:auto;padding:10px 14px">Kopieren</button></div>
-  <div class="msg" style="margin-top:12px">3. Auf „Show results“ tippen. Die Filter liegen in der linken Leiste, evtl. erst unter „+more filters“.</div>
-  <a class="btn" style="display:block;text-decoration:none;text-align:center" href="https://www.whiskyauction.com/wac/whiskyBrowser" target="_blank" rel="noopener">Datenbank öffnen</a>
-  <div class="msg">Bleibt die Seite leer: Safari öffnen, whiskyauction.com aufrufen und „History Browser“ wählen. Danach in die App zurück und Wert oder Bild über „Bearbeiten“ → „Von WhiskyAuction übernehmen“ einfügen.</div>
-  <button class="btn alt" id="waClose">Schließen</button>
-</div></div>
 <button id="toTop" aria-label="Nach oben">↑</button>
 <div id="lb" hidden><img id="lbImg" alt=""><button class="btn alt" id="lbX">Schließen</button><div id="lbHint">Doppeltippen oder mit zwei Fingern zoomen</div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 setTimeout(function () { document.body.classList.add('ready'); }, 2000);
 var KEY = 'whisky_sammlung_v1';
-var items = [], editId = null, lastId = null, photoFull = '', photoThumb = '', photoChanged = false, scanner = null;
+var items = [], editId = null, lastId = null, listScroll = 0, formFrom = 'home', photoFull = '', photoThumb = '', photoChanged = false, scanner = null;
 var $ = function (id) { return document.getElementById(id); };
 
 function load() { try { items = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { items = []; } norm(); }
@@ -412,14 +405,6 @@ function clipImage() {
     });
   }).catch(function (e) { waMsg('Zugriff auf die Zwischenablage nicht möglich' + (e && e.name ? ' (' + e.name + ')' : '') + '.'); });
 }
-function openWa(d, n) {
-  $('waDist').textContent = d || '–'; $('waName').textContent = n || '–';
-  $('waCopyD').dataset.t = d || ''; $('waCopyN').dataset.t = n || '';
-  $('waCopyD').textContent = 'Kopieren'; $('waCopyN').textContent = 'Kopieren';
-  try { navigator.clipboard.writeText(d || n || ''); } catch (e) { }
-  $('waModal').classList.add('on');
-}
-
 /* Lupe / Vollbild */
 var lbS = 1, lbX = 0, lbY = 0, lbFit = 1, lbW = 1, lbH = 1, ptrs = {}, pinch0 = null, lastTap = { t: 0, x: 0, y: 0 }, lbMoved = false;
 function lbApply() { $('lbImg').style.transform = 'translate(' + lbX + 'px,' + lbY + 'px) scale(' + lbS + ')'; }
@@ -442,6 +427,7 @@ function closeLb() { $('lb').hidden = true; document.body.style.overflow = ''; $
 function pdist() { var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]]; return Math.hypot(a.x - b.x, a.y - b.y); }
 
 /* Detail */
+function backToList() { var y = listScroll || 0; show('vAll'); window.scrollTo(0, y); requestAnimationFrame(function () { window.scrollTo(0, y); }); }
 function openDetail(id) {
   var w = items.filter(function (x) { return x.id === id; })[0]; if (!w) return;
   var d = (w.now - w.buy) * w.qty, th = w.thumb || w.photo;
@@ -459,19 +445,17 @@ function openDetail(id) {
     '<dt>Kaufpreis gesamt</dt><dd>' + eur(w.buy * w.qty) + '</dd>' +
     '<dt>Zeitwert gesamt</dt><dd class="org">' + eur(w.now * w.qty) + '</dd>' +
     '<dt>Differenz</dt><dd class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + eur(d) + '</dd></dl></div>' +
-    '<button class="btn alt" id="bWa">Zeitwert bei WhiskyAuction prüfen</button>' +
     '<div class="row" style="margin-top:14px"><button class="btn" id="bEdit" style="margin:0">Bearbeiten</button><button class="btn alt" id="bBack2" style="margin:0">Zurück zur Liste</button></div>' +
     '<button class="btn del" id="bDel">Löschen</button>';
   $('bEdit').onclick = function () { openForm(w); };
-  $('bBack2').onclick = function () { show('vAll'); };
-  $('bWa').onclick = function () { openWa(w.distillery, w.name); };
+  $('bBack2').onclick = backToList;
   var hero = $('hero');
   if (hero) {
     fullPhoto(w).then(function (p) { if (p && hero.isConnected) hero.src = p; });
     hero.onclick = function () { fullPhoto(w).then(function (p) { openLb(p || hero.src); }); };
   }
   $('bDel').onclick = function () {
-    if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); delPhoto(w.id); save(); render(); show('vAll'); }
+    if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); delPhoto(w.id); save(); render(); backToList(); }
   };
   show('vDetail');
 }
@@ -484,7 +468,7 @@ function openForm(w) {
   $('ean').value = w ? w.ean : ''; $('distillery').value = w ? w.distillery : ''; $('name').value = w ? w.name : '';
   $('buy').value = w ? fmt2(w.buy) : ''; $('now').value = w ? fmt2(w.now) : ''; $('max').value = w && w.max ? fmt2(w.max) : '';
   $('date').value = w ? (w.date || todayStr()) : todayStr(); $('abv').value = w ? w.abv || '' : ''; $('qty').value = w ? w.qty : 1;
-  $('msg').textContent = ''; waMsg(''); $('photoIn').value = ''; setPrev(); show('vForm');
+  $('msg').textContent = ''; $('cpMsg').textContent = ''; waMsg(''); $('photoIn').value = ''; setPrev(); show('vForm');
 }
 function shrink(file, max, q) {
   return new Promise(function (res, rej) {
@@ -640,12 +624,12 @@ function lookup(ean) {
 }
 
 /* Ereignisse */
-$('list').addEventListener('click', function (e) { var it = e.target.closest('.item'); if (it) openDetail(it.getAttribute('data-id')); });
-$('bAdd').onclick = function () { openForm(null); };
-$('bAll').onclick = function () { renderList(); show('vAll'); };
+$('list').addEventListener('click', function (e) { var it = e.target.closest('.item'); if (it) { listScroll = window.scrollY; openDetail(it.getAttribute('data-id')); } });
+$('bAdd').onclick = function () { formFrom = 'home'; openForm(null); };
+$('bAll').onclick = function () { listScroll = 0; renderList(); show('vAll'); };
 $('bHome').onclick = function () { show('vList'); };
 $('fDist').onchange = renderList; $('fSort').onchange = renderList; $('fText').oninput = renderList;
-$('bCancel').onclick = function () { stopScan(); show(editId ? 'vAll' : 'vList'); };
+$('bCancel').onclick = function () { stopScan(); if (editId) openDetail(editId); else if (formFrom === 'list') backToList(); else show('vList'); };
 $('bScan').onclick = startScan;
 $('bScanStop').onclick = stopScan;
 $('scanFile').addEventListener('change', scanPhoto);
@@ -654,16 +638,22 @@ $('photoIn').addEventListener('change', function (e) {
   var f = e.target.files && e.target.files[0]; if (!f) return;
   procPhoto(f).then(function (x) { photoFull = x.full; photoThumb = x.thumb; photoChanged = true; setPrev(); }).catch(function () { $('msg').textContent = 'Foto konnte nicht gelesen werden.'; });
 });
-$('bAdd2').onclick = function () { openForm(null); };
-$('bWaF').onclick = function () { openWa($('distillery').value.trim(), $('name').value.trim()); };
+$('bAdd2').onclick = function () { listScroll = window.scrollY; formFrom = 'list'; openForm(null); };
+function cpField(id, label) {
+  var v = $(id).value.trim();
+  if (!v) { $('cpMsg').textContent = label + ' ist im Formular leer.'; return; }
+  try {
+    navigator.clipboard.writeText(v).then(function () { $('cpMsg').textContent = label + ' kopiert: ' + v; }, function () { $('cpMsg').textContent = 'Kopieren wurde nicht erlaubt.'; });
+  } catch (e) { $('cpMsg').textContent = 'Kopieren ist hier nicht möglich.'; }
+}
+$('cpD').onclick = function () { cpField('distillery', 'Destillerie'); };
+$('cpN').onclick = function () { cpField('name', 'Name'); };
+$('cpE').onclick = function () { cpField('ean', 'EAN'); };
 $('bClipNow').onclick = function () { applyVal('now'); };
 $('bClipMax').onclick = function () { applyVal('max'); };
 $('bClipImg').onclick = clipImage;
 $('wFile').addEventListener('change', function (e) { var f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) useBlob(f); });
 ['buy', 'now', 'max'].forEach(function (id) { $(id).addEventListener('blur', function () { var v = this.value.trim(); if (v !== '') this.value = fmt2(num(v)); }); });
-function cp(b) { try { navigator.clipboard.writeText(b.dataset.t || ''); } catch (e) { } b.textContent = 'Kopiert ✓'; }
-$('waCopyD').onclick = function () { cp(this); };
-$('waCopyN').onclick = function () { cp(this); };
 window.addEventListener('scroll', function () { $('toTop').style.display = window.scrollY > 300 ? 'flex' : 'none'; }, { passive: true });
 $('toTop').onclick = function () { window.scrollTo({ top: 0, behavior: 'smooth' }); };
 var lbEl = $('lb');
@@ -740,7 +730,7 @@ $('rng').addEventListener('click', function (e) {
   Array.prototype.forEach.call(this.children, function (x) { x.className = x === b ? 'on' : ''; });
   drawHist();
 });
-$('waClose').onclick = function () { $('waModal').classList.remove('on'); };
+
 
 $('slides').addEventListener('scroll', function () {
   var k = Math.round(this.scrollLeft / this.clientWidth), d = $('dots').children;
