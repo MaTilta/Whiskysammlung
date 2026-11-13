@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,8 +11,8 @@
 <style>
 :root{--bg:#14100c;--card:#1f1913;--line:#33291e;--tx:#f4ece0;--mut:#a69885;--acc:#d9902f;--ok:#7fc48a;--bad:#e07a6a}
 *{box-sizing:border-box;margin:0;padding:0}
-html{background:var(--bg)}
-body{background:transparent;color:var(--tx);font:16px/1.4 Georgia,"Times New Roman",serif;padding:env(safe-area-inset-top) 0 calc(40px + env(safe-area-inset-bottom))}
+html{background:var(--bg);overflow-x:hidden}
+body{touch-action:pan-y;overflow-x:hidden;-webkit-text-size-adjust:100%;background:transparent;color:var(--tx);font:16px/1.4 Georgia,"Times New Roman",serif;padding:env(safe-area-inset-top) 0 calc(40px + env(safe-area-inset-bottom))}
 main{max-width:480px;margin:0 auto;padding:16px;opacity:0;transition:opacity 1.3s ease}
 body.ready main{opacity:1}
 h1{font-size:26px;font-weight:normal;letter-spacing:.5px;margin:8px 0 14px}
@@ -53,6 +53,11 @@ svg text{fill:var(--tx);font:12px -apple-system,sans-serif}
 body.ready #shade{opacity:1}
 h1{text-shadow:0 1px 10px rgba(0,0,0,.8)}
 .org{color:var(--bad)}
+.lot>*{min-width:0}
+.lot input[type=date]{width:100%}
+.mini{background:#3a3024;color:var(--tx);border:0;border-radius:8px;padding:5px 9px;font-size:12px;margin-left:6px;font-family:-apple-system,sans-serif}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:#3a3024;color:var(--tx);border:0;border-radius:999px;padding:6px 12px;font-size:13px;font-family:-apple-system,sans-serif}
 .btn[disabled]{opacity:.35}
 .lot{display:grid;grid-template-columns:1.1fr .6fr 1.5fr 40px;gap:6px;margin-bottom:6px;align-items:center}
 .lot input{padding:9px 8px;font-size:15px;min-width:0}
@@ -87,7 +92,7 @@ input[type=date]{min-height:44px}
 
 <!-- Übersicht -->
 <section id="vList">
-  <h1>Meine Whiskys</h1>
+  <h1 id="homeTitle">Meine Whiskys</h1>
   <div class="stats">
     <div class="card"><small>Flaschen insgesamt</small><div class="big" id="cBot">0</div></div>
     <div class="card"><small>Verschiedene Sorten</small><div class="big" id="cSort">0</div></div>
@@ -107,22 +112,34 @@ input[type=date]{min-height:44px}
     <div class="dots" id="dots"><i class="on"></i><i></i></div>
     <div class="msg" id="sDiff" style="text-align:center"></div>
   </div>
-  <div class="row"><button class="btn" id="bAll" style="margin:0;font-size:14px">Alle Flaschen ansehen</button><button class="btn alt" id="bAdd" style="margin:0;font-size:14px">Flasche hinzufügen</button></div>
-  <div class="card" style="margin-top:20px">
+  <div id="homeMain">
+    <div class="row"><button class="btn alt" id="bBkPage" style="margin:0;font-size:13px;padding:12px 4px">Datensicherung</button><button class="btn" id="bAll" style="margin:0;font-size:13px;padding:12px 4px">Flaschen ansehen</button><button class="btn alt" id="bAdd" style="margin:0;font-size:13px;padding:12px 4px">Flasche hinzufügen</button></div>
+    <button class="btn alt" id="bOutHome" style="margin-top:12px">Flaschen aus Sammlung entnommen</button>
+  </div>
+  <div id="homeOut" hidden>
+    <div class="row"><button class="btn alt" id="bToMain" style="margin:0;font-size:14px">Zur Sammlung</button><button class="btn" id="bAllOut" style="margin:0;font-size:14px">Alle entnommenen Flaschen ansehen</button></div>
+  </div>
+  </section>
+
+<!-- Datensicherung -->
+<section id="vBk" hidden>
+  <h1>Datensicherung</h1>
+  <div class="card">
     <small>Sicherung</small>
     <button class="btn" id="bBk1">Sicherung mit Fotos vorbereiten</button>
     <button class="btn" id="bBk2" hidden>Sicherung speichern (Dateien / iCloud)</button>
     <label class="btn alt" style="text-align:center;display:block;color:var(--tx);margin:10px 0 0;font-size:15px">Sicherung einspielen<input type="file" id="bkIn" hidden></label>
     <div class="msg" id="bkMsg"></div>
-    <div class="msg" style="margin-top:10px">Nur Text, ohne Fotos:</div>
+    <div class="msg" style="margin-top:10px">Nur Text der Sammlung, ohne Fotos:</div>
     <div class="row"><button class="btn alt" id="bExp">Daten kopieren</button><button class="btn alt" id="bImp">Daten einfügen</button></div>
     <div class="msg" id="stor"></div>
   </div>
+  <button class="btn alt" id="bBkBack">Zurück zur Startseite</button>
 </section>
 
 <!-- Alle Flaschen -->
 <section id="vAll" hidden>
-  <h1>Alle Flaschen</h1>
+  <h1 id="allTitle">Alle Flaschen</h1>
   <div class="card">
     <label style="margin-top:0">Destillerie</label>
     <select id="fDist"><option value="">Alle Destillerien</option></select>
@@ -201,19 +218,21 @@ input[type=date]{min-height:44px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 setTimeout(function () { document.body.classList.add('ready'); }, 2000);
-var KEY = 'whisky_sammlung_v1';
-var items = [], editId = null, lastId = null, listIds = [], navId = null, listScroll = 0, formFrom = 'home', photoFull = '', photoThumb = '', photoChanged = false, scanner = null;
+var KEY = 'whisky_sammlung_v1', KEY2 = 'whisky_entnommen_v1';
+var items = [], main = [], removed = [], mode = 'main', pendingSource = '', editId = null, lastId = null, listIds = [], navId = null, listScroll = 0, formFrom = 'home', photoFull = '', photoThumb = '', photoChanged = false, scanner = null;
 var $ = function (id) { return document.getElementById(id); };
 
-function load() { try { items = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { items = []; } norm(); }
+function readArr(k) { try { var a = JSON.parse(localStorage.getItem(k)); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function load() { main = readArr(KEY); removed = readArr(KEY2); norm(main); norm(removed); items = mode === 'out' ? removed : main; }
+function syncRef() { if (mode === 'out') removed = items; else main = items; }
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(items)); return true; }
+  try { localStorage.setItem(KEY, JSON.stringify(main)); localStorage.setItem(KEY2, JSON.stringify(removed)); return true; }
   catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); return false; }
 }
 function num(v) { return parseFloat(String(v).replace(',', '.')) || 0; }
 function eur(n) { return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-function show(v) { ['vList', 'vAll', 'vForm', 'vDetail'].forEach(function (x) { $(x).hidden = x !== v; }); window.scrollTo(0, 0); }
+function show(v) { ['vList', 'vAll', 'vForm', 'vDetail', 'vBk'].forEach(function (x) { $(x).hidden = x !== v; }); window.scrollTo(0, 0); }
 
 /* Übersicht, Summen, Diagramm */
 function render() {
@@ -275,8 +294,8 @@ function syncLots(w) {
   var q = 0, t = 0; w.lots.forEach(function (l) { q += l.qty; t += l.price * l.qty; });
   w.qty = q; w.buy = q ? t / q : 0; w.date = w.lots[0].date;
 }
-function norm() {
-  items.forEach(function (w) {
+function norm(arr) {
+  (arr || items).forEach(function (w) {
     var ts = parseInt(w.id, 36); if (!(ts > 1e12)) ts = Date.now();
     if (!w.date) w.date = ymd(ts);
     if (!w.vh || !w.vh.length) w.vh = [{ t: ts, v: w.now }];
@@ -456,15 +475,15 @@ function showLastBk() {
 }
 function bkPrepare() {
   bkMsg('Sicherung wird erstellt …'); $('bBk2').hidden = true; bkFile = null;
-  var out = { app: 'whisky-sammlung', v: 2, date: new Date().toISOString(), items: items, photos: {} }, chain = Promise.resolve(), n = 0;
-  items.forEach(function (w) {
+  var out = { app: 'whisky-sammlung', v: 3, date: new Date().toISOString(), items: main, removed: removed, photos: {} }, chain = Promise.resolve(), n = 0;
+  main.concat(removed).forEach(function (w) {
     chain = chain.then(function () { return getPhoto(w.id).then(function (d) { if (d) { out.photos[w.id] = d; n++; } }).catch(function () { }); });
   });
   chain.then(function () {
     var txt = JSON.stringify(out);
     bkFile = { txt: txt, name: 'whisky-sicherung-' + todayStr() + '.json' };
     $('bBk2').hidden = false;
-    bkMsg('Sicherung bereit: ' + items.length + ' Flaschen, ' + n + ' große Fotos, ' + (txt.length / 1048576).toFixed(1) + ' MB. Jetzt „Sicherung speichern“ tippen.');
+    bkMsg('Sicherung bereit: ' + main.length + ' Flaschen (+ ' + removed.length + ' entnommene), ' + n + ' große Fotos, ' + (txt.length / 1048576).toFixed(1) + ' MB. Jetzt „Sicherung speichern“ tippen.');
   }).catch(function (e) { bkMsg('Sicherung fehlgeschlagen: ' + (e && e.message ? e.message : e)); });
 }
 function bkSave() {
@@ -494,7 +513,7 @@ function bkRestore(file) {
     if (!list) { bkMsg('Die Datei ist keine gültige Sicherung.'); return; }
     var ids = Object.keys(ph);
     if (!confirm('Sicherung mit ' + list.length + ' Flaschen und ' + ids.length + ' Fotos einspielen? Die aktuellen Daten werden ersetzt.')) return;
-    items = list; norm(); if (!save()) return;
+    main = list; if (o && Array.isArray(o.removed)) removed = o.removed; norm(main); norm(removed); mode = 'main'; items = main; applyMode(); if (!save()) return;
     var chain = Promise.resolve(), k = 0;
     ids.forEach(function (id) { chain = chain.then(function () { bkMsg('Fotos werden eingespielt … ' + (++k) + '/' + ids.length); return putPhoto(id, ph[id]); }); });
     chain.then(function () { render(); bkMsg('Sicherung eingespielt: ' + list.length + ' Flaschen, ' + ids.length + ' Fotos.'); })
@@ -505,6 +524,65 @@ function bkRestore(file) {
 }
 
 /* Detail */
+/* Sammlung / entnommene Flaschen */
+function applyMode() {
+  var o = mode === 'out';
+  $('homeTitle').textContent = o ? 'Entnommene Flaschen' : 'Meine Whiskys';
+  $('allTitle').textContent = o ? 'Alle entnommenen Flaschen' : 'Alle Flaschen';
+  $('bAdd2').textContent = o ? 'Entnommene Flasche hinzufügen' : 'Flasche hinzufügen';
+  $('homeMain').hidden = o; $('homeOut').hidden = !o;
+}
+function setMode(m) {
+  mode = m; items = m === 'out' ? removed : main;
+  $('fText').value = ''; $('fDist').value = ''; applyMode(); render(); show('vList');
+}
+function skey(x) { return (x.distillery || '').trim().toLowerCase() + '|' + (x.name || '').trim().toLowerCase(); }
+function allSources() {
+  var a = [];
+  main.concat(removed).forEach(function (w) { var x = (w.source || '').trim(); if (x && a.indexOf(x) < 0) a.push(x); });
+  return a.sort(cmp);
+}
+function takeOut(w, i) {
+  var lot = w.lots[i]; if (!lot) return;
+  if (!confirm('1 Flasche (' + eur(lot.price) + ', gekauft ' + fmtDate(lot.date) + ') in „Flaschen aus Sammlung entnommen“ verschieben?')) return;
+  var ex = removed.filter(function (x) { return skey(x) === skey(w); })[0], target, nl = { price: lot.price, qty: 1, date: lot.date, out: todayStr() };
+  if (ex) {
+    target = ex;
+    var m = ex.lots.filter(function (l) { return l.price === nl.price && l.date === nl.date && l.out === nl.out; })[0];
+    if (m) m.qty += 1; else ex.lots.push(nl);
+    ex.now = w.now; ex.max = w.max; if (w.source) ex.source = w.source;
+    if (!ex.vh.length || Math.abs(ex.vh[ex.vh.length - 1].v - w.now) > 0.0049) ex.vh.push({ t: Date.now(), v: w.now });
+    if (w.max > 0) { if (!ex.mh || !ex.mh.length || Math.abs(ex.mh[ex.mh.length - 1].v - w.max) > 0.0049) ex.mh = (ex.mh || []).concat([{ t: Date.now(), v: w.max }]); } else { ex.mh = []; }
+    syncLots(ex);
+  } else {
+    target = { id: Date.now().toString(36) + 'r', distillery: w.distillery, name: w.name, ean: w.ean, abv: w.abv, now: w.now, max: w.max, source: w.source || '', thumb: w.thumb || '', photo: w.photo || '', vh: w.vh.slice(), mh: (w.mh || []).slice(), lots: [nl] };
+    syncLots(target); removed.push(target);
+  }
+  var cpPhoto = !ex || !(ex.thumb || ex.photo);
+  if (ex && cpPhoto) { ex.thumb = w.thumb || ''; ex.photo = w.photo || ''; }
+  lot.qty -= 1;
+  if (lot.qty <= 0) w.lots.splice(i, 1);
+  var gone = !w.lots.length;
+  if (gone) { items = items.filter(function (x) { return x.id !== w.id; }); syncRef(); } else { syncLots(w); }
+  save();
+  (cpPhoto ? getPhoto(w.id).then(function (d) { if (d) return putPhoto(target.id, d); }).catch(function () { }) : Promise.resolve())
+    .then(function () { if (gone) delPhoto(w.id); render(); if (gone) backToList(); else openDetail(w.id); });
+}
+function readd(w) {
+  mode = 'main'; items = main; applyMode(); render();
+  var m = main.filter(function (x) { return skey(x) === skey(w); })[0];
+  formFrom = 'home';
+  if (m) {
+    openForm(m); lotRow({ price: null, qty: 1, date: todayStr() }); lotSum();
+  } else {
+    openForm(null);
+    $('distillery').value = w.distillery || ''; $('name').value = w.name || ''; $('ean').value = w.ean || ''; $('abv').value = w.abv || '';
+    $('now').value = fmt2(w.now); $('max').value = w.max ? fmt2(w.max) : '';
+    photoThumb = w.thumb || w.photo || ''; photoFull = ''; photoChanged = !!photoThumb; pendingSource = w.source || ''; setPrev();
+    getPhoto(w.id).then(function (d) { if (d) { photoFull = d; photoChanged = true; } }).catch(function () { });
+  }
+  waMsg('Neuer Kauf vorbereitet: Preis eintragen und „Flasche speichern“ tippen.');
+}
 function goNb(i) { if (i < 0 || i >= listIds.length) return; navId = listIds[i]; openDetail(listIds[i]); }
 function backToList() {
   var y = listScroll || 0, id = navId; navId = null; show('vAll');
@@ -517,11 +595,13 @@ function backToList() {
 function openDetail(id) {
   var w = items.filter(function (x) { return x.id === id; })[0]; if (!w) return;
   var d = w.now * w.qty - bt(w), th = w.thumb || w.photo, idx = listIds.indexOf(w.id);
-  var lr = w.lots.map(function (l, i) { return '<dt>' + (w.lots.length > 1 ? 'Kauf ' + (i + 1) : 'Kauf') + '</dt><dd>' + l.qty + ' × ' + eur(l.price) + ' · ' + fmtDate(l.date) + '</dd>'; }).join('');
-  var nav = '<div class="row" style="margin-top:14px"><button class="btn alt" id="bPrev" style="margin:0"' + (idx > 0 ? '' : ' disabled') + '>‹ Vorherige</button><button class="btn alt" id="bNext" style="margin:0"' + (idx >= 0 && idx < listIds.length - 1 ? '' : ' disabled') + '>Nächste ›</button></div><div class="msg" style="text-align:center">' + (idx >= 0 ? (idx + 1) + ' von ' + listIds.length + ' in der aktuellen Liste' : 'Nicht in der aktuellen Liste') + '</div>';
+  var lr = w.lots.map(function (l, i) { return '<dt>' + (w.lots.length > 1 ? 'Kauf ' + (i + 1) : 'Kauf') + '</dt><dd>' + l.qty + ' × ' + eur(l.price) + ' · ' + fmtDate(l.date) + (l.out ? ' · entnommen ' + fmtDate(l.out) : '') + (mode === 'main' ? ' <button type="button" class="mini" data-lot="' + i + '">−1 entnehmen</button>' : '') + '</dd>'; }).join('');
+  var srcs = allSources();
+  var srcHtml = '<div style="margin-top:12px"><small style="margin-bottom:4px">Bezugsquelle</small><input id="srcIn" type="text" maxlength="120" placeholder="Woher stammt die Flasche?" value="' + esc(w.source || '') + '">' + (srcs.length ? '<div class="chips">' + srcs.map(function (x) { return '<button type="button" class="chip" data-s="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>' : '') + '</div>';
+  var nav = (mode === 'out' ? '<button class="btn" id="bReadd" style="margin-top:14px">1 Flasche zur Sammlung hinzufügen</button>' : '') + '<div class="row" style="margin-top:14px"><button class="btn alt" id="bPrev" style="margin:0"' + (idx > 0 ? '' : ' disabled') + '>‹ Vorherige</button><button class="btn alt" id="bNext" style="margin:0"' + (idx >= 0 && idx < listIds.length - 1 ? '' : ' disabled') + '>Nächste ›</button></div><div class="msg" style="text-align:center">' + (idx >= 0 ? (idx + 1) + ' von ' + listIds.length + ' in der aktuellen Liste' : 'Nicht in der aktuellen Liste') + '</div>';
   $('detail').innerHTML =
     (th ? '<img class="hero" id="hero" src="' + th + '" alt="Flaschenfoto (antippen zum Vergrößern)">' : '') +
-    '<div class="card"><h2>' + esc(w.name) + '</h2><dl>' +
+    '<div class="card">' + (mode === 'out' ? '<small>Aus der Sammlung entnommen</small>' : '') + '<h2>' + esc(w.name) + '</h2><dl>' +
     '<dt>Destillerie</dt><dd>' + esc(w.distillery || '–') + '</dd>' +
     '<dt>Barcode (EAN)</dt><dd>' + esc(w.ean || '–') + '</dd>' +
     '<dt>Alkoholgehalt</dt><dd>' + (w.abv ? w.abv + ' % vol' : '–') + '</dd>' +
@@ -531,11 +611,16 @@ function openDetail(id) {
     '<dt>Höchstwert pro Flasche</dt><dd class="blue">' + (w.max ? eur(w.max) : '–') + '</dd>' +
     '<dt>Kaufpreis gesamt</dt><dd>' + eur(bt(w)) + '</dd>' +
     '<dt>Zeitwert gesamt</dt><dd class="org">' + eur(w.now * w.qty) + '</dd>' +
-    '<dt>Differenz</dt><dd class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + eur(d) + '</dd></dl></div>' +
+    '<dt>Differenz</dt><dd class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + eur(d) + '</dd></dl>' + srcHtml + '</div>' +
     nav + '<div class="row" style="margin-top:14px"><button class="btn" id="bEdit" style="margin:0">Bearbeiten</button><button class="btn alt" id="bBack2" style="margin:0">Zurück zur Liste</button></div>' +
     '<button class="btn del" id="bDel">Löschen</button>';
   $('bEdit').onclick = function () { openForm(w); };
   $('bBack2').onclick = backToList;
+  var ri = $('bReadd'); if (ri) ri.onclick = function () { readd(w); };
+  var si = $('srcIn');
+  si.addEventListener('change', function () { w.source = this.value.trim(); save(); });
+  Array.prototype.forEach.call($('detail').querySelectorAll('.chip'), function (b) { b.onclick = function () { si.value = b.getAttribute('data-s'); w.source = si.value.trim(); save(); }; });
+  Array.prototype.forEach.call($('detail').querySelectorAll('.mini'), function (b) { b.onclick = function () { takeOut(w, parseInt(b.getAttribute('data-lot'), 10)); }; });
   $('bPrev').onclick = function () { goNb(idx - 1); };
   $('bNext').onclick = function () { goNb(idx + 1); };
   var hero = $('hero');
@@ -544,7 +629,7 @@ function openDetail(id) {
     hero.onclick = function () { fullPhoto(w).then(function (p) { openLb(p || hero.src); }); };
   }
   $('bDel').onclick = function () {
-    if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); delPhoto(w.id); save(); render(); backToList(); }
+    if (confirm('Diese Flasche wirklich löschen?')) { items = items.filter(function (x) { return x.id !== w.id; }); syncRef(); delPhoto(w.id); save(); render(); backToList(); }
   };
   show('vDetail');
 }
@@ -552,7 +637,7 @@ function openDetail(id) {
 /* Formular */
 function setPrev() { $('prev').style.backgroundImage = photoThumb ? "url('" + photoThumb + "')" : ''; $('prev').textContent = photoThumb ? '' : '🥃'; }
 function lotRow(l) {
-  var d = document.createElement('div'); d.className = 'lot';
+  var d = document.createElement('div'); d.className = 'lot'; d.dataset.out = l && l.out ? l.out : '';
   d.innerHTML = '<input class="lp" inputmode="decimal" placeholder="85,00"><input class="lq" inputmode="numeric" placeholder="1"><input class="ld" type="date"><button type="button" class="btn del lx" aria-label="Zeile entfernen">×</button>';
   d.querySelector('.lp').value = l && l.price != null ? fmt2(l.price) : '';
   d.querySelector('.lq').value = l ? l.qty : 1;
@@ -563,7 +648,7 @@ function lotsFromForm() {
   var a = [];
   Array.prototype.forEach.call($('lots').children, function (r) {
     var pv = r.querySelector('.lp').value.trim(), q = parseInt(r.querySelector('.lq').value, 10) || 0;
-    if (q > 0 && pv !== '') a.push({ price: num(pv), qty: q, date: r.querySelector('.ld').value || todayStr() });
+    if (q > 0 && pv !== '') { var lo = { price: num(pv), qty: q, date: r.querySelector('.ld').value || todayStr() }; if (r.dataset.out) lo.out = r.dataset.out; a.push(lo); }
   });
   return a;
 }
@@ -572,8 +657,8 @@ function lotSum() {
   $('lotSum').textContent = l.length ? 'Gesamt: ' + q + ' Flaschen, Kaufpreis gesamt ' + eur(t) : '';
 }
 function openForm(w) {
-  editId = w ? w.id : null; photoFull = ''; photoThumb = w ? (w.thumb || w.photo || '') : ''; photoChanged = false;
-  $('fTitle').textContent = w ? 'Flasche bearbeiten' : 'Neue Flasche';
+  pendingSource = ''; editId = w ? w.id : null; photoFull = ''; photoThumb = w ? (w.thumb || w.photo || '') : ''; photoChanged = false;
+  $('fTitle').textContent = w ? 'Flasche bearbeiten' : (mode === 'out' ? 'Neue entnommene Flasche' : 'Neue Flasche');
   $('ean').value = w ? w.ean : ''; $('distillery').value = w ? w.distillery : ''; $('name').value = w ? w.name : '';
   $('lots').innerHTML = ''; (w ? w.lots : [null]).forEach(function (l) { lotRow(l); }); lotSum();
   $('now').value = w ? fmt2(w.now) : ''; $('max').value = w && w.max ? fmt2(w.max) : ''; $('abv').value = w ? w.abv || '' : '';
@@ -735,7 +820,11 @@ function lookup(ean) {
 /* Ereignisse */
 $('list').addEventListener('click', function (e) { var it = e.target.closest('.item'); if (it) { listScroll = window.scrollY; navId = null; openDetail(it.getAttribute('data-id')); } });
 $('bAdd').onclick = function () { formFrom = 'home'; openForm(null); };
-$('bAll').onclick = function () { listScroll = 0; renderList(); show('vAll'); };
+$('bAll').onclick = $('bAllOut').onclick = function () { listScroll = 0; renderList(); show('vAll'); };
+$('bBkPage').onclick = function () { show('vBk'); };
+$('bBkBack').onclick = function () { show('vList'); };
+$('bOutHome').onclick = function () { setMode('out'); };
+$('bToMain').onclick = function () { setMode('main'); };
 $('bHome').onclick = function () { show('vList'); };
 $('fDist').onchange = renderList; $('fSort').onchange = renderList; $('fText').oninput = renderList;
 $('bCancel').onclick = function () { stopScan(); if (editId) openDetail(editId); else if (formFrom === 'list') backToList(); else show('vList'); };
@@ -817,7 +906,7 @@ $('f').addEventListener('submit', function (e) {
   var old = k >= 0 ? items[k] : null, vh = old && old.vh ? old.vh.slice() : [], mh = old && old.mh ? old.mh.slice() : [];
   if (!vh.length || Math.abs(vh[vh.length - 1].v - o.now) > 0.0049) vh.push({ t: Date.now(), v: o.now });
   if (o.max > 0) { if (!mh.length || Math.abs(mh[mh.length - 1].v - o.max) > 0.0049) mh.push({ t: Date.now(), v: o.max }); } else { mh = []; }
-  o.vh = vh; o.mh = mh;
+  o.vh = vh; o.mh = mh; o.source = old ? (old.source || '') : pendingSource; pendingSource = '';
   if (!photoChanged && old) { o.thumb = old.thumb || ''; o.photo = old.photo || ''; } else { o.thumb = photoThumb; o.photo = ''; }
   var fin = function () {
     if (k >= 0) items[k] = o; else items.push(o);
@@ -837,10 +926,10 @@ $('bExp').onclick = function () {
 };
 $('bImp').onclick = function () {
   var t = prompt('Sicherungstext hier einfügen (ersetzt alle aktuellen Daten):'); if (!t) return;
-  try { var a = JSON.parse(t); if (a && !Array.isArray(a) && Array.isArray(a.items)) a = a.items; if (!Array.isArray(a)) throw 0; items = a; norm(); save(); render(); alert('Daten wiederhergestellt.'); } catch (e) { alert('Der Text ist keine gültige Sicherung.'); }
+  try { var a = JSON.parse(t); if (a && !Array.isArray(a) && Array.isArray(a.items)) a = a.items; if (!Array.isArray(a)) throw 0; items = a; syncRef(); norm(); save(); render(); alert('Daten wiederhergestellt.'); } catch (e) { alert('Der Text ist keine gültige Sicherung.'); }
 };
 
-load(); render(); showLastBk();
+load(); applyMode(); render(); showLastBk();
 $('rng').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b) return;
   rangeDays = parseInt(b.getAttribute('data-r'), 10) || 0;
